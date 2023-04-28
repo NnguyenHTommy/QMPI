@@ -9,7 +9,18 @@ import collComm, autoComm
 # I also assume that local 2+ qubit operations are fast and I don't have to use the teleportation protocol
 # going to assume that the quantum circuits given are not using all of the qubits and some qubits are allocated for EPR pairs
 
-# add a single epr register and classical register for doing epr pairs to each register 
+# to count how many epr pairs are used
+class numberEPR:
+    def __init__(self, q) -> None:
+        pairs = {}
+        for i in q.qregs:
+            pairs2 = {}
+            for j in q.qregs:
+                pairs2[j.name] = 0
+            pairs[i.name] = pairs2
+        self.eprConnections = pairs
+
+# add a epr register and classical register for doing epr pairs to each register 
 # private method
 def __addEPRregisters(q):
     length = len(q.qregs)
@@ -29,6 +40,8 @@ def convertQC(qc):
     # other optimizations with 2+ qubits with MPI broadcast and scatter...
     q = qc.decompose()
 
+    eprPairCounts = numberEPR(q)
+
     __addEPRregisters(q)
 
     instructions = []
@@ -36,23 +49,27 @@ def convertQC(qc):
         if circInstruction[0].name == 'cx':
             srcBit = circInstruction[1][0]
             destBit = circInstruction[1][1]
+            srcReg = MPI.EPRsetup.findRegName(q, srcBit)
+            destReg = MPI.EPRsetup.findRegName(q,destBit)
 
             # check if same registers then just add instruction 
-            if MPI.EPRsetup.findRegName(q, srcBit) == MPI.EPRsetup.findRegName(q,destBit):
+            if  srcReg == destReg:
                  instructions.append(circInstruction)
             # do remote tele with epr pairs if diff registers
             else:
                 remote = MPI.EPRsetup(q, srcBit, destBit)
                 instructions += remote.send()
+                eprPairCounts.eprConnections[srcReg][destReg] += 1
                 instructions += remote.cnot()
                 instructions += remote.unsend()
+                eprPairCounts.eprConnections[destReg][srcReg] += 1
         
         # not a two qubit gate then append as normal
         else:
             instructions.append(circInstruction)
 
     q.data = instructions 
-    return q
+    return q, eprPairCounts
 
 # this is tricky as you really need to understand how qiskit does things
 # The purpose of this function is to get rid of all the mid-circuit measurements

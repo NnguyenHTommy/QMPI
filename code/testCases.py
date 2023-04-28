@@ -49,7 +49,7 @@ class Testing(unittest.TestCase):
         counts = result.get_counts(qcirc)
         counts = self.convertToProb(counts)
 
-        qconvert = convert.convertQC(q)
+        qconvert,_ = convert.convertQC(q)
         result2 = self.aer_sim.run(qconvert, shots = self.shots).result()
         counts2 = result2.get_counts(qconvert)
         counts2 = convert.getActualCounts(qconvert, counts2)
@@ -71,22 +71,23 @@ def single():
     q.measure_all()
     return q
     
-# tests when theres mid circuit measurements
+# tests when theres mid circuit measurements and multiple cxs on multiple registers
 def multipleMeasurements():
     pp = QuantumCircuit()
     pr = QuantumRegister(1, 'pr')
     pr2 = QuantumRegister(1, 'pr2')
     pr3 = QuantumRegister(1, 'pr3')
+    pr4 = QuantumRegister(1, 'pr4')
     cr1 = ClassicalRegister(1, 'cr1')
     cr2 = ClassicalRegister(2, 'cr2')
-    pp.add_register(pr,pr2,cr1,cr2,pr3)
+    pp.add_register(pr,pr2,cr1,cr2,pr3,pr4)
     pp.x(pr[0])
     pp.cx(pr[0],pr2[0])
     pp.measure(pr2[0], cr1[0])
     pp.cx(pr2[0],pr[0])
     pp.cx(pr[0],pr2[0])
     pp.measure([pr[0],pr2[0]], [cr2[0],cr2[1]])
-    pp.x(pr2[0])
+    pp.cx(pr2[0], pr3[0])
     pp.measure_all()
     return pp
 
