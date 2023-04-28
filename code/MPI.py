@@ -1,6 +1,5 @@
 # This is to implement the MPI framework
-import qiskit
-from qiskit import QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
+from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
 
 class EPRsetup: 
     def __init__(self, q, srcBit, destBit) -> None:
@@ -10,8 +9,15 @@ class EPRsetup:
 
         # for easy look up for the names of quantum & classical registers to the actual register
         qregs = {}
-        for i in q.qregs:
-            qregs[i.name] = i
+        l = len(q.qregs)
+        for i in range(l):
+            qregs[q.qregs[i].name] = q.qregs[i]
+
+            if self.findRegName(q, srcBit) == q.qregs[i].name:
+                self.srcIndex = i
+            if self.findRegName(q, destBit) == q.qregs[i].name:
+                self.destIndex = i
+
         cregs = {}
         for j in q.cregs: 
             cregs[j.name] = j # the 2nd index is for recording if it's used and what result it gives
@@ -65,6 +71,7 @@ class EPRsetup:
         qq.z(self.EPRdestbit).c_if(self.Csrcbit,1)
 
         qq.reset(self.EPRsrcbit)
+        qq.barrier()
         return qq.data
     
     # implemnt cnot
@@ -72,6 +79,7 @@ class EPRsetup:
         qq = QuantumCircuit()
         qq.add_bits([self.destBit, self.EPRdestbit])
         qq.cx(self.EPRdestbit, self.destBit)
+        qq.barrier()
         return qq.data
 
     #tp_comm version of unsend
@@ -88,4 +96,5 @@ class EPRsetup:
         qq.z(self.srcBit).c_if(self.Cdestbit,1)
 
         qq.reset([self.EPRdestbit, self.EPRdestbit2, self.EPRsrcbit2])
+        qq.barrier()
         return qq.data
