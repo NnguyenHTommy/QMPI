@@ -20,21 +20,21 @@ class numberEPR:
             pairs[i.name] = pairs2
         self.eprConnections = pairs
 
-# add a epr register and classical register for doing epr pairs to each register 
+# add a epr register with n qubits and classical register for doing epr pairs to each register 
 # private method
-def __addEPRregisters(q):
+def __addEPRregisters(q, n=2):
     length = len(q.qregs)
     classDict = {}
     for j in range(length):
             i = q.qregs[j]
-            newEPRReg = QuantumRegister(2, name = i.name+"_epr") 
+            newEPRReg = QuantumRegister(n, name = i.name+"_epr") 
             newEPRClassreg = ClassicalRegister(1, name = i.name+"_epr_creg")
             q.add_register(newEPRReg)
             q.add_register(newEPRClassreg)
             classDict[newEPRClassreg.name] = 0
     q.metadata = classDict
 
-def convertQC(qc):
+def convertQC(qc,n=1):
     # decompose quantum circuit into standard gate set of single qubit and CNOT
     # There might be optimizations to do with other 2 qubit gates with Autocomm or colcomm
     # other optimizations with 2+ qubits with MPI broadcast and scatter...
@@ -42,7 +42,7 @@ def convertQC(qc):
 
     eprPairCounts = numberEPR(q)
 
-    __addEPRregisters(q)
+    __addEPRregisters(q,n)
 
     instructions = []
     for circInstruction in q:  
@@ -57,12 +57,16 @@ def convertQC(qc):
                  instructions.append(circInstruction)
             # do remote tele with epr pairs if diff registers
             else:
-                remote = MPI.EPRsetup(q, srcBit, destBit)
-                instructions += remote.send()
+                remote = MPI.EPRsetup(q, srcBit, destBit,n)
+                # instructions += remote.send()
+                # eprPairCounts.eprConnections[srcReg][destReg] += 1
+                # instructions += remote.cnot()
+                # instructions += remote.unsend()
+                # eprPairCounts.eprConnections[destReg][srcReg] += 1
+                instructions += remote.copy()
                 eprPairCounts.eprConnections[srcReg][destReg] += 1
                 instructions += remote.cnot()
-                instructions += remote.unsend()
-                eprPairCounts.eprConnections[destReg][srcReg] += 1
+                instructions += remote.uncopy()
         
         # not a two qubit gate then append as normal
         else:
@@ -80,7 +84,7 @@ def convertQC(qc):
 # q is quantum circuit and counts is counts dictionary. 
 # returns count dictionary without the epr classical registers
 def getActualCounts(q, counts):
-    m = len(q.metadata)*2
+    m = len(q.metadata)*2 # 2 because of the spaces in between the registers
 
     actualCounts = {}
     for key, val in counts.items():

@@ -3,6 +3,7 @@
 import convert
 from qiskit import QuantumCircuit, transpile, QuantumRegister, ClassicalRegister
 import unittest
+import qiskit
 from qiskit import Aer
 
 class Testing(unittest.TestCase):
@@ -26,12 +27,13 @@ class Testing(unittest.TestCase):
             q = QuantumCircuit.from_qasm_file(pathname + i + '/'+ i + '.qasm')
             self.__compare(q)
 
-    # def test_longAlgos(self):
-    #     pathname = "/Users/tommtommbom/Desktop/Classes/EE 522 - QMPI/QASMBench-master/small/"
-    #     algoth = ['adder_n10']
-    #     for i in algoth:
-    #         q = QuantumCircuit.from_qasm_file(pathname + i + '/'+ i + '.qasm')
-    #         self.__compare(q)
+    def test_longAlgos(self):
+        aer_sim = Aer.get_backend('aer_simulator_matrix_product_state')
+        pathname = "/Users/tommtommbom/Desktop/Classes/EE 522 - QMPI/QASMBench-master/small/"
+        algoth = ['adder_n10']
+        for i in algoth:
+            q = QuantumCircuit.from_qasm_file(pathname + i + '/'+ i + '.qasm')
+            self.__compare(q)
     
 
     # converts count dicitonary to probabilities
@@ -57,6 +59,7 @@ class Testing(unittest.TestCase):
 
         for k,_ in counts.items():
             self.assertEqual(abs(counts[k] - counts2[k]) <= self.tolerance, 1)
+        print('Hellinger fidelity:' + str(qiskit.quantum_info.hellinger_fidelity(counts, counts2)))
 
 # DEFINE QUANTUM CIRCUIT TEST CASES HERE
 
@@ -93,3 +96,10 @@ def multipleMeasurements():
 
 if __name__ == '__main__':
     unittest.main()
+
+
+# https://github.com/pnnl/nwq-sim for simulation with pnnl -> faster than qiskit
+# https://github.com/pnnl/sv-sim - state vector sim
+# https://github.com/pnnl/dm-sim - density matrx sim
+# https://qiskit.org/documentation/stubs/qiskit.transpiler.CouplingMap.html coupling map for dependencies of what qubits
+# can have cx gates between them
